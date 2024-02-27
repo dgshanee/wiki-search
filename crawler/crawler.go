@@ -1,12 +1,12 @@
 package crawler
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/dgshanee/search-engine-demo/indexer"
 )
 
 type Crawler struct {
@@ -47,17 +47,21 @@ func (c *Crawler) Crawl(url string) ([]WordData, error) {
 		return nil, err
 	}
 
+	idxr := indexer.NewIndexer()
+
 	mainBody := doc.Find("#bodyContent").Not(".reflist, .refbegin").First()
 
 	mainBody.Find(c.selector).Each(func(i int, g *goquery.Selection) {
+		for _, v := range strings.Split(g.Text(), " ") {
+			idxr.Index(v, url)
+		}
 		g.Find("a").Not(".reference").Each(func(i int, ga *goquery.Selection) {
 			if ga.ParentFiltered(".reference, .mw-editsection").Length() == 0 {
-				fmt.Print(strings.TrimSpace(ga.Text()))
+				//This gets all the links on the wikipedia article
+				//Do something with this
 			}
 		})
-		fmt.Println()
 	})
-
 	return nil, nil
 }
 

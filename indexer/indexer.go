@@ -5,48 +5,47 @@ import (
 	"strings"
 
 	"github.com/boltdb/bolt"
-	"github.com/dgshanee/search-engine-demo/crawler"
 )
 
 type Indexer struct {
 	db *bolt.DB
 }
 
-func NewIndexer(db *bolt.DB) *Indexer {
+func NewIndexer() *Indexer {
+	db, err := bolt.Open("wiki-search-demo", 0600, nil)
+	if err != nil {
+		return nil
+	}
 	return &Indexer{
 		db: db,
 	}
 }
 
-func addToBucket(b *bolt.Bucket, set crawler.WordData) {
-	setWord := set.Word
-	setUrl := set.Url
+func addToBucket(b *bolt.Bucket, word string, url string) {
 
-	existingVal := b.Get([]byte(setWord))
+	existingVal := b.Get([]byte(word))
 	if existingVal == nil {
-		b.Put([]byte(setWord), []byte(setUrl))
+		b.Put([]byte(word), []byte(url))
 		return
 	}
 
 	valSet := strings.Split(string(existingVal), ",")
 
-	valSet = append(valSet, setUrl)
+	valSet = append(valSet, url)
 	resSet := strings.Join(valSet, ",")
 
-	b.Put([]byte(setWord), []byte(resSet))
+	b.Put([]byte(word), []byte(resSet))
 	return
 }
 
-func (i *Indexer) Index(data []crawler.WordData) {
+func (i *Indexer) Index(data string, url string) {
 	i.db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte("search-data"))
 		if err != nil {
 			return err
 		}
-
-		for _, wordData := range data {
-			addToBucket(b, wordData)
-		}
+		addToBucket(b, data, url)
+		fmt.Println(data, " added to bucket at url ", url)
 		return nil
 	})
 }
