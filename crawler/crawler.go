@@ -1,12 +1,12 @@
 package crawler
 
 import (
+	"fmt"
 	"net/http"
-	"strings"
+	"sync"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/dgshanee/search-engine-demo/indexer"
 )
 
 type Crawler struct {
@@ -47,22 +47,38 @@ func (c *Crawler) Crawl(url string) ([]WordData, error) {
 		return nil, err
 	}
 
-	idxr := indexer.NewIndexer()
+	var wg sync.WaitGroup
+	semaphore := make(chan struct{}, 100)
 
+	startTime := time.Now()
 	mainBody := doc.Find("#bodyContent").Not(".reflist, .refbegin").First()
-
 	mainBody.Find(c.selector).Each(func(i int, g *goquery.Selection) {
-		for _, v := range strings.Split(g.Text(), " ") {
-			idxr.Index(v, url)
-		}
+		//Index by word here
 		g.Find("a").Not(".reference").Each(func(i int, ga *goquery.Selection) {
 			if ga.ParentFiltered(".reference, .mw-editsection").Length() == 0 {
+				redirect, ok := ga.Attr("href")
 				//This gets all the links on the wikipedia article
 				//Do something with this
+				if ok {
+					wg.Add(1)
+					semaphore <- struct{}{}
+
+					go announceCall(redirect, &wg, semaphore)
+				}
 			}
 		})
 	})
+	wg.Wait()
+	endTime := time.Now()
+	fmt.Println("All routines finished in ", endTime.Sub(startTime), " seconds")
 	return nil, nil
+}
+
+func announceCall(url string, wg *sync.WaitGroup, semaphore chan struct{}) {
+	defer wg.Done()
+	fmt.Println("Travelling to ", url)
+	time.Sleep(2 * time.Millisecond)
+	<-semaphore
 }
 
 func NewCrawler() *Crawler {
@@ -70,6 +86,7 @@ func NewCrawler() *Crawler {
 	newClient := &http.Client{
 		Timeout: 2 * time.Second,
 	}
+
 	return &Crawler{
 		client:   newClient,
 		selector: selectorString,
