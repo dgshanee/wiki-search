@@ -35,7 +35,7 @@ func (c *Crawler) fetch(url string) (*http.Response, error) {
 	return res, nil
 }
 
-func (c *Crawler) Crawl(url string) ([]WordData, error) {
+func (c *Crawler) Crawl(url string, maxCon int) ([]WordData, error) {
 	res, err := c.fetch(url)
 	if err != nil {
 		return nil, err
@@ -48,29 +48,31 @@ func (c *Crawler) Crawl(url string) ([]WordData, error) {
 	}
 
 	var wg sync.WaitGroup
-	semaphore := make(chan struct{}, 100)
+	semaphore := make(chan struct{}, maxCon)
 
-	startTime := time.Now()
 	mainBody := doc.Find("#bodyContent").Not(".reflist, .refbegin").First()
 	mainBody.Find(c.selector).Each(func(i int, g *goquery.Selection) {
 		//Index by word here
 		g.Find("a").Not(".reference").Each(func(i int, ga *goquery.Selection) {
 			if ga.ParentFiltered(".reference, .mw-editsection").Length() == 0 {
-				redirect, ok := ga.Attr("href")
+				_, ok := ga.Attr("href")
 				//This gets all the links on the wikipedia article
 				//Do something with this
 				if ok {
 					wg.Add(1)
 					semaphore <- struct{}{}
 
-					go announceCall(redirect, &wg, semaphore)
+					go func() {
+						defer wg.Done()
+
+						time.Sleep(2 * time.Millisecond)
+						<-semaphore
+					}()
 				}
 			}
 		})
 	})
 	wg.Wait()
-	endTime := time.Now()
-	fmt.Println("All routines finished in ", endTime.Sub(startTime), " seconds")
 	return nil, nil
 }
 

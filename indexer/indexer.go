@@ -38,8 +38,8 @@ func addToBucket(b *bolt.Bucket, word string, url string) {
 	return
 }
 
-func (i *Indexer) Index(data string, url string) {
-	i.db.Update(func(tx *bolt.Tx) error {
+func (i *Indexer) Index(data string, url string) error {
+	err := i.db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte("search-data"))
 		if err != nil {
 			return err
@@ -48,6 +48,8 @@ func (i *Indexer) Index(data string, url string) {
 		fmt.Println(data, " added to bucket at url ", url)
 		return nil
 	})
+
+	return err
 }
 
 func (i *Indexer) ShowDB() {
