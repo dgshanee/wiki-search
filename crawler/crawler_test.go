@@ -30,6 +30,34 @@ func Benchmark_crawl(b *testing.B) {
 	}
 }
 
+func Test_valiateUrl(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+		pass bool
+	}{
+		{"golang", "/wiki/Go_(programming_language)", true},
+		{"shorkie", "/wiki/Yorkshire_Terrier", true},
+		{"category", "/Category/all_dog_breeds:", false},
+		{"no-slashes", "wiki/Yorkshire_Terrier", false},
+		{"no-slashes-2", "wikiYorkshire_Terrier", false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ok := c.validUrl(tc.url)
+
+			if ok && !tc.pass {
+				t.Errorf("Unexpected pass at url %s", tc.url)
+			}
+
+			if !ok && tc.pass {
+				t.Errorf("Expected pass at url %s, got fail", tc.url)
+			}
+		})
+	}
+}
+
 func Test_fetch(t *testing.T) {
 	tests := []struct {
 		name        string

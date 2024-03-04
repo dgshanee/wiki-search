@@ -3,6 +3,7 @@ package crawler
 import (
 	"fmt"
 	"net/http"
+	"regexp"
 	"sync"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 type Crawler struct {
 	client   *http.Client
 	selector string
+	regex    *regexp.Regexp
 }
 
 type WordData struct {
@@ -47,25 +49,26 @@ func (c *Crawler) Crawl(url string, maxCon int) ([]WordData, error) {
 		return nil, err
 	}
 
+	//This is where we start to search
 	var wg sync.WaitGroup
 	semaphore := make(chan struct{}, maxCon)
 
+	//This highlights the main wikipedia page, not references
 	mainBody := doc.Find("#bodyContent").Not(".reflist, .refbegin").First()
 	mainBody.Find(c.selector).Each(func(i int, g *goquery.Selection) {
-		//Index by word here
+		//TODO: ADD EACH WORD TO DATABASE HERE
 		g.Find("a").Not(".reference").Each(func(i int, ga *goquery.Selection) {
 			if ga.ParentFiltered(".reference, .mw-editsection").Length() == 0 {
-				_, ok := ga.Attr("href")
-				//This gets all the links on the wikipedia article
-				//Do something with this
-				if ok {
+				href, ok := ga.Attr("href")
+				//This gets all the links on the wikipedia article that aren't references
+				if ok && c.validUrl(href) {
 					wg.Add(1)
 					semaphore <- struct{}{}
 
 					go func() {
 						defer wg.Done()
 
-						time.Sleep(2 * time.Millisecond)
+						fmt.Printf("Travelling to %s...", href)
 						<-semaphore
 					}()
 				}
@@ -76,6 +79,10 @@ func (c *Crawler) Crawl(url string, maxCon int) ([]WordData, error) {
 	return nil, nil
 }
 
+func (c *Crawler) validUrl(url string) bool {
+	return c.regex.Match([]byte(url))
+}
+
 func announceCall(url string, wg *sync.WaitGroup, semaphore chan struct{}) {
 	defer wg.Done()
 	fmt.Println("Travelling to ", url)
@@ -84,6 +91,13 @@ func announceCall(url string, wg *sync.WaitGroup, semaphore chan struct{}) {
 }
 
 func NewCrawler() *Crawler {
+	//Initialize regex compilation to match URL
+	pattern := `\/wiki\/[A-Za-z0-9_()]+`
+	regex, err := regexp.Compile(pattern)
+	if err != nil {
+		panic(err)
+	}
+
 	selectorString := "p,h1,h2,h3,ul"
 	newClient := &http.Client{
 		Timeout: 2 * time.Second,
@@ -92,5 +106,6 @@ func NewCrawler() *Crawler {
 	return &Crawler{
 		client:   newClient,
 		selector: selectorString,
+		regex:    regex,
 	}
 }
