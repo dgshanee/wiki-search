@@ -20,7 +20,7 @@ func Benchmark_crawl(b *testing.B) {
 		b.Run(fmt.Sprintf("Crawl-%d", v), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				var url string = "https://www.wikipedia.org/wiki/Go_(programming_language)"
-				result, err := c.Crawl(url, v)
+				result, err := c.Crawl(url, v, 0)
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -41,6 +41,10 @@ func Test_valiateUrl(t *testing.T) {
 		{"category", "/Category/all_dog_breeds:", false},
 		{"no-slashes", "wiki/Yorkshire_Terrier", false},
 		{"no-slashes-2", "wikiYorkshire_Terrier", false},
+		{"file", "/wiki/File:poop.jpg", false},
+		{"categiry", "/wiki/Category:poop", false},
+		{"different language lol", "https://af.wikipedia.org/wiki/Go_(programmeertaal)", false},
+		{"percent", "/wiki/go%ejdeadl", false},
 	}
 
 	for _, tc := range tests {
@@ -74,7 +78,7 @@ func Test_fetch(t *testing.T) {
 			result, err := c.fetch(tc.url)
 			if err != nil {
 				if !tc.errExpected {
-					t.Fatalf("Unexpected error at url %s", tc.url)
+					t.Fatalf("Unexpected error at url %s, %v", tc.url, err)
 				}
 
 				return
@@ -89,5 +93,13 @@ func Test_fetch(t *testing.T) {
 			}
 
 		})
+	}
+}
+
+func Test_crawl(t *testing.T) {
+	url := "/wiki/Go_(programming_language)"
+	_, err := c.Crawl(url, 2, 0)
+	if err != nil {
+		t.Error(err)
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -37,16 +38,21 @@ func (c *Crawler) fetch(url string) (*http.Response, error) {
 	return res, nil
 }
 
-func (c *Crawler) Crawl(url string, maxCon int) ([]WordData, error) {
-	res, err := c.fetch(url)
+func (c *Crawler) Crawl(url string, maxCon int, depth int) ([]WordData, error) {
+	fmt.Printf("Crawling url %s, depth %d\n", url, depth)
+
+	if depth >= 5 {
+		return nil, nil
+	}
+	res, err := c.fetch(fmt.Sprintf("https://en.wikipedia.org%s", url))
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 	defer res.Body.Close()
 
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 
 	//This is where we start to search
@@ -66,9 +72,10 @@ func (c *Crawler) Crawl(url string, maxCon int) ([]WordData, error) {
 					semaphore <- struct{}{}
 
 					go func() {
+						time.Sleep(time.Second)
 						defer wg.Done()
 
-						fmt.Printf("Travelling to %s...", href)
+						c.Crawl(href, 500, depth+1)
 						<-semaphore
 					}()
 				}
@@ -80,7 +87,13 @@ func (c *Crawler) Crawl(url string, maxCon int) ([]WordData, error) {
 }
 
 func (c *Crawler) validUrl(url string) bool {
-	return c.regex.Match([]byte(url))
+
+	ok := c.regex.Match([]byte(url))
+	if !ok {
+		return false
+	}
+
+	return !strings.ContainsAny(url, ":") && !strings.ContainsAny(url, "%")
 }
 
 func announceCall(url string, wg *sync.WaitGroup, semaphore chan struct{}) {
