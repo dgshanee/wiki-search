@@ -39,7 +39,6 @@ func (c *Crawler) fetch(url string) (*http.Response, error) {
 }
 
 func (c *Crawler) Crawl(url string, maxCon int, depth int) ([]WordData, error) {
-	fmt.Printf("Crawling url %s, depth %d\n", url, depth)
 
 	if depth >= 5 {
 		return nil, nil
@@ -72,10 +71,10 @@ func (c *Crawler) Crawl(url string, maxCon int, depth int) ([]WordData, error) {
 					semaphore <- struct{}{}
 
 					go func() {
-						time.Sleep(time.Second)
+						time.Sleep(2 * time.Millisecond)
 						defer wg.Done()
 
-						c.Crawl(href, 500, depth+1)
+						//c.Crawl(href, 500, depth+1)
 						<-semaphore
 					}()
 				}

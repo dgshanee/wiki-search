@@ -19,7 +19,7 @@ func Benchmark_crawl(b *testing.B) {
 	for _, v := range []int{1, 100, 400, 900, 1000, 2000, 5000, 10000} {
 		b.Run(fmt.Sprintf("Crawl-%d", v), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				var url string = "https://www.wikipedia.org/wiki/Go_(programming_language)"
+				var url string = "/wiki/Go_(programming_language)"
 				result, err := c.Crawl(url, v, 0)
 				if err != nil {
 					b.Fatal(err)
